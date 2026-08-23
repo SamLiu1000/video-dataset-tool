@@ -1,0 +1,48 @@
+# ============ Python ============
+__pycache__/
+*.py[cod]
+*.so
+*.pyd
+*.egg-info/
+.eggs/
+*.egg
+
+# ============ 虚拟环境 ============
+.venv/
+.venv1/
+venv/
+env/
+ENV/
+
+# ============ 构建产物（PyInstaller） ============
+build/
+dist/
+*.manifest
+*.spec.bak
+
+# 注意：VCT.spec 是构建必需的，不要忽略它。
+
+# ============ 运行时生成（用户数据 / 日志，不打包、不进 git）============
+vct_settings.json
+*.log
+*.log.[0-9]*
+
+# ============ 编辑器 / IDE / 工具 ============
+.idea/
+.vscode/
+*.iml
+.codegraph/
+.zcode/
+
+# ============ 系统 ============
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ============================================================
+# 可选：如果不想把 FFmpeg / libmpv 这些大体积二进制提交进 git，
+# 取消下面两行注释。但注意，去掉后全新克隆无法直接 build.bat，
+# 需先手动下载并放回 ffmpeg\ 与 libmpv\（参考 setup.bat 提示）。
+# ============================================================
+# ffmpeg/
+# libmpv/
