@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from PySide6.QtCore import QEvent, QRectF, QSize, QTime, Qt, QThread, QTimer, Signal
-from PySide6.QtGui import QColor, QDragEnterEvent, QDropEvent, QIcon, QKeySequence, QPainter, QPixmap, QShortcut
+from PySide6.QtGui import QColor, QDoubleValidator, QDragEnterEvent, QDropEvent, QIcon, QKeySequence, QPainter, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -336,13 +336,19 @@ class MainWindow(QWidget):
         self.prev_frame_btn.setIcon(style.step_icon("prev"))
         self.prev_frame_btn.setIconSize(QSize(16, 16))
         self.prev_frame_btn.setToolTip(tr("上一帧 (←/A)"))
-        self.play_btn = self._btn(tr("▶ 播放"))
-        self.play_btn.setCheckable(True)
-        self.play_btn.setToolTip(tr("播放/暂停 (空格)"))
+        # 步进秒数输入框：留空=1帧(最小步进)；填数字(可含小数)=按秒跳转
+        self.step_input = QLineEdit()
+        self.step_input.setFixedWidth(80)
+        self.step_input.setPlaceholderText(tr("秒,空=1帧"))
+        self.step_input.setValidator(QDoubleValidator(0.0, 99999.0, 5, self.step_input))
+        self.step_input.setToolTip(tr("步进秒数：留空=最小步进1帧；填数字(可含小数)=前进/后退按秒跳转"))
         self.next_frame_btn = self._btn("")
         self.next_frame_btn.setIcon(style.step_icon("next"))
         self.next_frame_btn.setIconSize(QSize(16, 16))
         self.next_frame_btn.setToolTip(tr("下一帧 (→/D)"))
+        self.play_btn = self._btn(tr("▶ 播放"))
+        self.play_btn.setCheckable(True)
+        self.play_btn.setToolTip(tr("播放/暂停 (空格)"))
         self.frame_label = QLabel(tr("00:00:00.00 · 帧 0"))
         self.frame_label.setObjectName("mono")
         self.speed = SpeedWidget()
@@ -362,8 +368,9 @@ class MainWindow(QWidget):
         self.volume_value.setFixedWidth(46)
         self.volume_value.setToolTip(tr("预览音量（100%=原音量，最大 600%）"))
         trow.addWidget(self.prev_frame_btn)
-        trow.addWidget(self.play_btn)
+        trow.addWidget(self.step_input)
         trow.addWidget(self.next_frame_btn)
+        trow.addWidget(self.play_btn)
         # 定位选区：缩放窗口到裁切选区（放在重置缩放上方）
         self.timeline_fit_btn = self._btn(tr("定位选区"))
         self.timeline_fit_btn.setToolTip(tr("缩放时间轴窗口到当前裁切选区"))
@@ -373,6 +380,13 @@ class MainWindow(QWidget):
         self.timeline_reset_zoom_btn.setToolTip(tr("重置时间轴缩放"))
         trow.addWidget(self.timeline_reset_zoom_btn)
         trow.addWidget(self.frame_label)
+        # 画面→入点/出点：把当前播放头帧设为入/出点，免去拖裁切条手柄
+        self.to_in_btn = self._btn(tr("画面到入点"))
+        self.to_in_btn.setToolTip(tr("把当前帧设为入点"))
+        self.to_out_btn = self._btn(tr("画面到出点"))
+        self.to_out_btn.setToolTip(tr("把当前帧设为出点"))
+        trow.addWidget(self.to_in_btn)
+        trow.addWidget(self.to_out_btn)
         trow.addStretch(1)
         trow.addWidget(self.volume_name)
         trow.addWidget(self.volume_icon)
@@ -564,9 +578,11 @@ class MainWindow(QWidget):
         self.h_guide_btn.clicked.connect(lambda: self.preview.add_guide("h"))
         self.clear_guide_btn.clicked.connect(self.preview.clear_guides)
 
-        self.prev_frame_btn.clicked.connect(lambda: self._manual_step(-1))
-        self.next_frame_btn.clicked.connect(lambda: self._manual_step(1))
+        self.prev_frame_btn.clicked.connect(lambda: self._button_step(-1))
+        self.next_frame_btn.clicked.connect(lambda: self._button_step(1))
         self.play_btn.clicked.connect(self.toggle_play)
+        self.to_in_btn.clicked.connect(self._set_in_to_playhead)
+        self.to_out_btn.clicked.connect(self._set_out_to_playhead)
         self.speed.speed_changed.connect(self._on_speed)
         self.preview_reset_zoom_btn.clicked.connect(self.preview.reset_zoom)
         self.timeline_fit_btn.clicked.connect(self.timeline.fit_selection)
@@ -1076,6 +1092,50 @@ class MainWindow(QWidget):
         if self._playing:
             self.toggle_play()   # 暂停
         self._step_frame(delta)
+
+    def _parse_step_seconds(self) -> float | None:
+        """读步进输入框：留空/非法/<=0 → None(按1帧)；否则返回秒数。"""
+        txt = self.step_input.text().strip()
+        if not txt:
+            return None
+        try:
+            v = float(txt)
+        except ValueError:
+            return None
+        return v if v > 0 else None
+
+    def _button_step(self, direction: int) -> None:
+        """前进/后退步进按钮：输入框填了秒数 → 按秒跳转；留空 → 逐帧步进。
+        两者都先暂停(与手动步进一致)；跳转复用 _seek(精确落点+settle定版)。
+        """
+        if not self.reader:
+            return
+        secs = self._parse_step_seconds()
+        if secs is None:
+            self._manual_step(direction)
+        else:
+            cur = self._frame_idx / self.reader.fps
+            dur = self.reader.duration
+            target = cur + direction * secs
+            if dur > 0:
+                target = max(0.0, min(dur, target))
+            self._seek(target)
+
+    def _set_in_to_playhead(self) -> None:
+        """画面到入点：把当前播放头帧设为入点，出点保持不变(必要时被最小跨距钳制)。"""
+        if not self.reader:
+            return
+        in_sec = self._frame_idx / self.reader.fps
+        self.timeline.set_range(in_sec, self._current_out())
+        self._on_range_changed(in_sec, self._current_out())
+
+    def _set_out_to_playhead(self) -> None:
+        """画面到出点：把当前播放头帧设为出点，入点保持不变(必要时被最小跨距钳制)。"""
+        if not self.reader:
+            return
+        out_sec = self._frame_idx / self.reader.fps
+        self.timeline.set_range(self._current_in(), out_sec)
+        self._on_range_changed(self._current_in(), out_sec)
 
     def _step_tick(self) -> None:
         """长按 A/D 的连续步进定时器（等同慢速播放）"""

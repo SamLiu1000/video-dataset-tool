@@ -175,6 +175,13 @@ _EN = {
         "Export audio gain: 100% = original volume, up to 600% boost",
     "视频保留音频": "Keep Video Audio",
     "导出视频片段时是否保留原音轨": "Keep the original audio track when exporting a video clip",
+    "秒,空=1帧": "sec, blank=1 frame",
+    "步进秒数：留空=最小步进1帧；填数字(可含小数)=前进/后退按秒跳转":
+        "Step seconds: blank = minimum 1 frame; enter a number (with decimals) to jump by that many seconds",
+    "画面到入点": "Set In-Point to Frame",
+    "画面到出点": "Set Out-Point to Frame",
+    "把当前帧设为入点": "Set the current frame as the in-point",
+    "把当前帧设为出点": "Set the current frame as the out-point",
     "硬件加速（NVENC）": "Hardware Acceleration (NVENC)",
     "超过 5 秒禁止导出": "Block exports over 5 seconds",
     "防止误操作（默认开启）：视频片段选区时长超过 5 秒时阻止导出，\n"
