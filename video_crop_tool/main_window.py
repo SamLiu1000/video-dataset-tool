@@ -737,6 +737,8 @@ class MainWindow(QWidget):
 
     def _apply_preset(self, w: int, h: int) -> None:
         if self.reader:
+            # 先更新面板宽高/导出尺寸，再设剪裁框 → 框按预设比例贴合，且面板同步跟随
+            self.panel.set_sizes(w, h)
             self.preview.set_crop_size(w, h)
 
     def _add_preset(self) -> None:
@@ -1464,14 +1466,14 @@ class MainWindow(QWidget):
         src_w, src_h = self.reader.width, self.reader.height
         scale = min(1.0, src_w / max(1, h), src_h / max(1, w))   # 交换后 w↔h 再缩放
         fw, fh = ensure_even(int(round(h * scale))), ensure_even(int(round(w * scale)))
-        self.preview.set_crop_size(fw, fh)  # 先设框（其 crop_changed 回写面板会被覆盖）
-        # 面板值=导出分辨率，允许超源（如 1080×1920 纵向分辨率）；临时放宽上限
-        self.panel.cw.setRange(2, 99999)
+        self.panel.cw.setRange(2, 99999)   # 面板值=导出分辨率，允许超源（如 1080×1920 纵向）
         self.panel.ch.setRange(2, 99999)
-        self.panel.set_sizes(h, w)          # 最后设面板互换值（blockSignals 防回环）
+        # 先更新导出尺寸（面板互换值），再设框 → 框按新比例贴合，避免 _fit_aspect 用旧比例
+        self.panel.set_sizes(h, w)
+        self.preview.set_crop_size(fw, fh)
         if self.panel.keep_size_chk.isChecked():
-            # 保持尺寸缩放：面板互换后导出宽高比已变，框要按新比例重新贴合，
-            # 否则框比例与导出不一致、导出会拉伸变形，框也要等下次交互才刷新
+            # 保持尺寸缩放：面板互换后导出宽高比已变，框要按新比例再次贴合，
+            # 否则框比例与导出不一致、导出会拉伸变形
             self.preview.set_crop(self.preview.crop_rect())
 
     def _on_duration_input(self) -> None:
