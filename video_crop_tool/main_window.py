@@ -1458,10 +1458,11 @@ class MainWindow(QWidget):
             self.preview.set_crop_size(self.panel.cw.value(), self.panel.ch.value())
 
     def _swap_wh(self) -> None:
-        """交换宽高：翻转当前裁切框的宽/高（尺寸保持一致，只换方向）。
+        """交换宽高：当前框 W↔H 字面对换（1440×810 → 810×1440）。
 
-        放不下则等比例缩小适应视频（不拉伸）。面板宽高始终跟随框，
-        保证"面板=框"一致（不会再出现面板 1080×1920、框却 608×1080 的对不上）。
+        面板=交换后的逻辑尺寸(810×1440)；框若超出画面，则等比例缩小适应视频
+        (810×1440 → 608×1080)，不拉伸不变形。先同步导出尺寸再设框，
+        避免 _fit_aspect 用旧比例把框拉回错误方向。
         """
         if not self.reader:
             return
@@ -1469,15 +1470,13 @@ class MainWindow(QWidget):
         r = self.preview.crop_rect()
         if r.isNull() or r.width() <= 1 or r.height() <= 1:
             return
-        w, h = int(r.width()), int(r.height())        # 当前框尺寸（源像素）
-        scale = min(1.0, src_w / max(1, h), src_h / max(1, w))   # 翻转 w↔h 后，放不下则缩小
-        fw, fh = ensure_even(int(round(h * scale))), ensure_even(int(round(w * scale)))
-        self.panel.cw.setRange(2, 99999)   # 允许超源的纵向/横向分辨率
+        w, h = int(r.width()), int(r.height())        # 当前框（源像素）
+        scale = min(1.0, src_w / max(1, h), src_h / max(1, w))   # 交换后放不下则缩小
+        fw, fh = ensure_even(int(round(h * scale))), ensure_even(int(round(w * scale)))  # 框=缩小适应
+        self.panel.cw.setRange(2, 99999)   # 允许超源的纵向/横向逻辑分辨率
         self.panel.ch.setRange(2, 99999)
-        # 先更新面板+导出尺寸(→ _export_w/_export_h)，再设框 → _fit_aspect 用新翻转比例，
-        # 不会再把框拉回旧比例；面板=框(保持一致)
-        self.panel.set_sizes(fw, fh)
-        self.preview.set_crop_size(fw, fh)
+        self.panel.set_sizes(h, w)         # 面板 = 交换后的逻辑尺寸（810×1440）
+        self.preview.set_crop_size(fw, fh)   # 框 = 等比缩小适应（608×1080）
 
     def _on_duration_input(self) -> None:
         if not self.reader:
