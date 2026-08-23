@@ -1145,19 +1145,16 @@ class MainWindow(QWidget):
         self.timeline.set_range(self._current_in(), out_sec)
         self._on_range_changed(self._current_in(), out_sec)
 
-    def _shortcut_step(self, direction: int) -> None:
-        """快捷键(A/D/←→)步进：输入框填秒→按秒跳(轻量 VO seek)；留空→逐帧步进。
-
-        与按钮一致地"填秒跳转/留空帧步进"；秒模式单次跳，跳完 settle 定版。
-        """
+    def _step_motion(self, direction: int) -> bool:
+        """步进的"动效"：帧步进或按秒跳，更新帧号/进度/画面。返回是否为秒跳(True=秒)。"""
         if not self.reader:
-            return
+            return False
         if self._playing:
             self.toggle_play()   # 暂停，与手动步进一致
         secs = self._parse_step_seconds()
         if secs is None:
             self._step_frame(direction)
-            return
+            return False
         fps = self.reader.fps
         n = self.reader.frame_count
         target = max(0, min(n - 1, self._frame_idx + direction * round(secs * fps)))
@@ -1166,22 +1163,29 @@ class MainWindow(QWidget):
         if self.reader.duration > 0:
             self.timeline.set_playhead(target / fps)
         self._mpv_queue.put(("jogseek", target / fps))
-        self._request_settle()   # 定版：裁剪构图视图(CPU)跟上 VO 画面
+        return True
+
+    def _shortcut_step(self, direction: int) -> None:
+        """快捷键(A/D/←→)单次步进：填秒→秒跳，留空→逐帧；秒跳后 settle 定版。"""
+        if self._step_motion(direction):
+            self._request_settle()
+
+    def _repeat_step(self, direction: int) -> None:
+        """长按连发的步进动效：不逐拍 settle（松开时统一定版），避免截图过密卡顿。"""
+        self._step_motion(direction)
 
     def _step_tick(self) -> None:
-        """长按 A/D 的连续步进定时器（仅帧步进模式；按秒模式不长按连跳）"""
-        self._step_frame(self._step_dir)
+        """长按 A/D 的连续步进定时器（帧步进/秒跳都支持连发）"""
+        self._repeat_step(self._step_dir)
 
     def _step_hold(self, delta: int) -> None:
         """A/D 首次按下：暂停后按设置步进一帧/秒，并启动长按检测。
 
-        长按超过 300ms 才连续步进(等同播放)；仅「帧步进」支持长按连跳；
-        填了秒数则每次按下只跳一次(跳转幅度由输入框决定)。
+        长按超过 300ms 后开始连续步进（帧=逐帧，秒=按秒连发）。
         """
         self._shortcut_step(delta)
         self._step_dir = delta
-        if self._parse_step_seconds() is None:
-            self._step_hold_timer.start()
+        self._step_hold_timer.start()
 
     def _step_hold_expired(self) -> None:
         """长按检测到期：进入持续步进模式"""
@@ -1230,7 +1234,8 @@ class MainWindow(QWidget):
                 it = self._mpv_queue.get_nowait()
             except queue.Empty:
                 break
-            if it is None or it[0] != "step":
+            # 清掉残留的 step(帧步进) 与 jogseek(按秒跳)，避免松手后连走几帧/几跳
+            if it is None or it[0] not in ("step", "jogseek"):
                 kept.append(it)
         for it in kept:
             self._mpv_queue.put(it)
@@ -1683,10 +1688,14 @@ class MainWindow(QWidget):
             self._step_hold(-1 if ev.key() == Qt.Key_A else 1)
             return True
         if ev.type() == QEvent.KeyRelease and ev.key() in (Qt.Key_A, Qt.Key_D) and not ev.isAutoRepeat():
+            was_repeating = self._step_timer.isActive()   # 是否进入过长按连发
             self._step_hold_timer.stop()
             self._step_timer.stop()
-            # 松手即停：清掉队列里所有未处理的步进请求，避免松手后连走几帧
+            # 松手即停：清掉队列里所有未处理的步进/秒跳请求，避免松手后连走几帧/几跳
             self._drain_step()
+            # 秒跳长按松手：统一 settle 定版到最终位置（连发时未逐拍定版）
+            if was_repeating and self._parse_step_seconds() is not None:
+                self._request_settle()
             return True
         return super().eventFilter(obj, ev)
 
