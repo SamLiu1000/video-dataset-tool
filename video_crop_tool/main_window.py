@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from PySide6.QtCore import QEvent, QRectF, QSize, QTime, Qt, QThread, QTimer, Signal
-from PySide6.QtGui import QColor, QDoubleValidator, QDragEnterEvent, QDropEvent, QFont, QIcon, QKeySequence, QPainter, QPixmap, QShortcut
+from PySide6.QtGui import QBrush, QColor, QDoubleValidator, QDragEnterEvent, QDropEvent, QFont, QIcon, QKeySequence, QPainter, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -819,6 +819,8 @@ class MainWindow(QWidget):
             w, h = self._icon_item_size()
             item.setSizeHint(QSize(w, h))
         self.file_list.addItem(item)
+        # 新导入提示：未被选中前高亮，选中后清除（见 _on_file_selected）
+        item.setBackground(QBrush(QColor(style.NEW_ITEM_BG)))
         self._file_items[path] = item
         self.file_count.setText(str(len(self.files)))
         # 后台抓取首帧缩略图
@@ -830,13 +832,14 @@ class MainWindow(QWidget):
         return True
 
     def _on_file_selected(self) -> None:
-        """选中变化：不再直接打开文件。
+        """选中变化：清掉"刚导入"高亮（恢复正常选中态）。
 
-        部分 Qt 平台在鼠标悬停列表项时会触发 selectionChanged（选中但未点击），
-        若据此 open_file 会导致"悬停就切换预览"。打开文件只由真实鼠标点击
-        （eventFilter 的 MouseButtonRelease）和 _nav_file（上一段/下一段）触发。
+        不再直接打开文件——部分 Qt 平台悬停列表项会触发 selectionChanged，
+        据此 open_file 会导致"悬停就切换预览"。打开只由真实鼠标点击
+        （eventFilter 的 MouseButtonRelease）和 _nav_file 触发。
         """
-        pass
+        for it in self.file_list.selectedItems():
+            it.setBackground(QBrush())
 
     def _nav_file(self, delta: int) -> None:
         if not self.files:
