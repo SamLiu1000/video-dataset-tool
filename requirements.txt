@@ -1,0 +1,11 @@
+# 视频裁切工具依赖（Python 3.12）—— 精简版：只用 Qt Essentials（不装 Qt Addons）
+PySide6-Essentials>=6.6   # 实际用到 QtCore/QtGui/QtWidgets/QtSvg；QMediaPlayer 已改用 mpv，无需 Addons
+numpy>=1.26
+mpv>=1.0                  # python-mpv：预览取帧引擎（libmpv C API）
+pillow>=10                # screenshot-raw 的 PIL 返回类型依赖
+av>=18.0                  # core.VideoReader / Probe：封装音频流、探测元数据
+
+# 说明：python-mpv 需要 libmpv-2.dll（Windows）才能 import。
+# 部署：把 libmpv-2.dll 放到项目根 libmpv\ 目录（_ensure_libmpv 会自动把该目录加进 PATH）；
+#   来源 shinchiro 的 mpv-dev 构建：sourceforge.net/projects/mpv-player-windows/files/libmpv/
+# 注意：colour-science 已确认未被任何源码引用（HDR 走 ffmpeg zscale+tonemap），故移除。

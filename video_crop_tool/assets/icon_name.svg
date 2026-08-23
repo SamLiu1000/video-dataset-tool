@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="140" height="140" viewBox="0 0 140 140">
+  <defs>
+    <!-- 纯黄背景 -->
+    <linearGradient id="yellowBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD700"/>
+      <stop offset="100%" style="stop-color:#FFC107"/>
+    </linearGradient>
+    <!-- 阴影滤镜 -->
+    <filter id="bgShadow" x="-15%" y="-15%" width="135%" height="145%">
+      <feDropShadow dx="1.5" dy="3" stdDeviation="5" flood-color="#000000" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+
+  <!-- 背景圆角矩形 -->
+  <g filter="url(#bgShadow)">
+    <rect x="10" y="10" width="120" height="120" rx="20" ry="20" fill="url(#yellowBg)"/>
+  </g>
+
+  <!-- 三组白色粗条与深灰细条（列表模式） -->
+  <!-- 第一组 -->
+  <rect x="30" y="34" width="80" height="9" rx="4.5" ry="4.5" fill="#FFFFFF"/>
+  <rect x="30" y="49" width="55" height="6" rx="3" ry="3" fill="#4A4A4A"/>
+
+  <!-- 第二组 -->
+  <rect x="30" y="66" width="80" height="9" rx="4.5" ry="4.5" fill="#FFFFFF"/>
+  <rect x="30" y="81" width="55" height="6" rx="3" ry="3" fill="#4A4A4A"/>
+
+  <!-- 第三组 -->
+  <rect x="30" y="98" width="80" height="9" rx="4.5" ry="4.5" fill="#FFFFFF"/>
+  <rect x="30" y="113" width="55" height="6" rx="3" ry="3" fill="#4A4A4A"/>
+</svg>
