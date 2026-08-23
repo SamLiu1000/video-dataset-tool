@@ -178,8 +178,8 @@ _EN = {
     "秒,空=1帧": "sec, blank=1 frame",
     "步进秒数：留空=最小步进1帧；填数字(可含小数)=前进/后退按秒跳转":
         "Step seconds: blank = minimum 1 frame; enter a number (with decimals) to jump by that many seconds",
-    "画面到入点": "Set In-Point to Frame",
-    "画面到出点": "Set Out-Point to Frame",
+    "到入点": "In-Point",
+    "到出点": "Out-Point",
     "把当前帧设为入点": "Set the current frame as the in-point",
     "把当前帧设为出点": "Set the current frame as the out-point",
     "硬件加速（NVENC）": "Hardware Acceleration (NVENC)",

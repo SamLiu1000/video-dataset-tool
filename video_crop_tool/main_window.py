@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from PySide6.QtCore import QEvent, QRectF, QSize, QTime, Qt, QThread, QTimer, Signal
-from PySide6.QtGui import QColor, QDoubleValidator, QDragEnterEvent, QDropEvent, QIcon, QKeySequence, QPainter, QPixmap, QShortcut
+from PySide6.QtGui import QColor, QDoubleValidator, QDragEnterEvent, QDropEvent, QFont, QIcon, QKeySequence, QPainter, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -380,10 +380,12 @@ class MainWindow(QWidget):
         self.timeline_reset_zoom_btn.setToolTip(tr("重置时间轴缩放"))
         trow.addWidget(self.timeline_reset_zoom_btn)
         trow.addWidget(self.frame_label)
-        # 画面→入点/出点：把当前播放头帧设为入/出点，免去拖裁切条手柄
-        self.to_in_btn = self._btn(tr("画面到入点"))
+        # 画面→入点/出点：把当前播放头帧设为入/出点，免去拖裁切条手柄（紧凑小按钮）
+        self.to_in_btn = self._btn(tr("到入点"))
+        self.to_in_btn.setFont(QFont("Microsoft YaHei UI", 8))
         self.to_in_btn.setToolTip(tr("把当前帧设为入点"))
-        self.to_out_btn = self._btn(tr("画面到出点"))
+        self.to_out_btn = self._btn(tr("到出点"))
+        self.to_out_btn.setFont(QFont("Microsoft YaHei UI", 8))
         self.to_out_btn.setToolTip(tr("把当前帧设为出点"))
         trow.addWidget(self.to_in_btn)
         trow.addWidget(self.to_out_btn)
