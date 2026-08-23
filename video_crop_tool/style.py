@@ -25,7 +25,8 @@ ACCENT_HOVER = "#3d9dff"
 SUCCESS = "#30d158"       # Apple 系统绿（主按钮用）
 DANGER = "#ff453a"
 DANGER_BG = "rgba(255,69,58,0.14)"
-NEW_ITEM_BG = "#550A84FF"   # 新导入视频高亮（带alpha，未被选中前提示；Qt QColor 认 #AARRGGBB）
+NEW_ITEM_BG = "#550A84FF"   # 新导入视频高亮底色（带alpha，Qt QColor 认 #AARRGGBB）
+NEW_ITEM_BORDER = "#0a84ff" # 新导入视频高亮描边（accent，由 delegate 绘制，不受 item QSS 影响）
 MONO_FONT = "Consolas"
 
 # ---- 设计令牌：间距 / 圆角 / 控件高度 / 字号 ----

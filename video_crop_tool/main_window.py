@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from PySide6.QtCore import QEvent, QRectF, QSize, QTime, Qt, QThread, QTimer, Signal
-from PySide6.QtGui import QBrush, QColor, QDoubleValidator, QDragEnterEvent, QDropEvent, QFont, QIcon, QKeySequence, QPainter, QPixmap, QShortcut
+from PySide6.QtGui import QBrush, QColor, QDoubleValidator, QDragEnterEvent, QDropEvent, QFont, QIcon, QKeySequence, QPainter, QPen, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -92,6 +92,10 @@ class _VideoMeta:
     video_bitrate: int = 0
     dar: float = 0.0     # 显示宽高比（含 PAR），供裁切/导出还原变形源
     sar: float = 1.0     # 像素宽高比(PAR)；变形源 !=1.0，导出时还原到显示宽高比
+
+
+# 列表项数据角色：标记"新导入"项，由 _NameWrapDelegate 绘制高亮（QSS 会忽略 setBackground）
+NEW_ITEM_ROLE = Qt.UserRole + 1
 
 
 class MainWindow(QWidget):
@@ -820,7 +824,7 @@ class MainWindow(QWidget):
             item.setSizeHint(QSize(w, h))
         self.file_list.addItem(item)
         # 新导入提示：未被选中前高亮，选中后清除（见 _on_file_selected）
-        item.setBackground(QBrush(QColor(style.NEW_ITEM_BG)))
+        item.setData(NEW_ITEM_ROLE, True)   # 新导入提示：delegate 绘制高亮，选中后清除
         self._file_items[path] = item
         self.file_count.setText(str(len(self.files)))
         # 后台抓取首帧缩略图
@@ -839,7 +843,7 @@ class MainWindow(QWidget):
         （eventFilter 的 MouseButtonRelease）和 _nav_file 触发。
         """
         for it in self.file_list.selectedItems():
-            it.setBackground(QBrush())
+            it.setData(NEW_ITEM_ROLE, None)   # 清掉"刚导入"高亮（恢复正常选中态）
 
     def _nav_file(self, delta: int) -> None:
         if not self.files:
@@ -2188,26 +2192,41 @@ class _NameWrapDelegate(QStyledItemDelegate):
         return super().sizeHint(option, index)
 
     def paint(self, painter, option, index) -> None:
-        if not self.wrap_mode or not index.data(Qt.DisplayRole):
-            super().paint(painter, option, index)
-            return
-        opt = QStyleOptionViewItem(option)
-        self.initStyleOption(opt, index)
-        opt.text = ""
-        opt.icon = QIcon()
-        self._view.style().drawControl(QStyle.CE_ItemViewItem, opt, painter, self._view)
-
         rect = option.rect
-        icon = index.data(Qt.DecorationRole)
-        if icon and not icon.isNull():
-            ipm = icon.pixmap(self.ICON_W, self.ICON_W)
-            painter.drawPixmap(rect.left() + 2, rect.top() + (rect.height() - ipm.height()) // 2, ipm)
-        text = index.data(Qt.DisplayRole) or ""
-        tleft = rect.left() + self.ICON_W + self.ICON_GAP
-        tw = max(10, rect.width() - (tleft - rect.left()) - 4)
-        painter.setPen(QColor(style.TEXT if opt.state & QStyle.State_Selected else style.TEXT_SECONDARY))
-        painter.drawText(QRectF(tleft, rect.top(), tw, rect.height()),
-                         Qt.AlignCenter | Qt.TextWordWrap, text)
+        is_new = bool(index.data(NEW_ITEM_ROLE))
+        if is_new:
+            # 高亮底色：画在内容下面（QSS 会忽略 setBackground，故在此画）
+            painter.save()
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(QColor(style.NEW_ITEM_BG))
+            painter.drawRoundedRect(QRectF(rect).adjusted(0.5, 0.5, -0.5, -0.5), 8, 8)
+            painter.restore()
+        if self.wrap_mode and index.data(Qt.DisplayRole):
+            opt = QStyleOptionViewItem(option)
+            self.initStyleOption(opt, index)
+            opt.text = ""
+            opt.icon = QIcon()
+            self._view.style().drawControl(QStyle.CE_ItemViewItem, opt, painter, self._view)
+
+            icon = index.data(Qt.DecorationRole)
+            if icon and not icon.isNull():
+                ipm = icon.pixmap(self.ICON_W, self.ICON_W)
+                painter.drawPixmap(rect.left() + 2, rect.top() + (rect.height() - ipm.height()) // 2, ipm)
+            text = index.data(Qt.DisplayRole) or ""
+            tleft = rect.left() + self.ICON_W + self.ICON_GAP
+            tw = max(10, rect.width() - (tleft - rect.left()) - 4)
+            painter.setPen(QColor(style.TEXT if opt.state & QStyle.State_Selected else style.TEXT_SECONDARY))
+            painter.drawText(QRectF(tleft, rect.top(), tw, rect.height()),
+                             Qt.AlignCenter | Qt.TextWordWrap, text)
+        else:
+            super().paint(painter, option, index)
+        if is_new:
+            # 高亮描边：accent 画最上层，保证任何模式下都可见
+            painter.save()
+            painter.setBrush(Qt.NoBrush)
+            painter.setPen(QPen(QColor(style.NEW_ITEM_BORDER), 2))
+            painter.drawRoundedRect(QRectF(rect).adjusted(1, 1, -1, -1), 8, 8)
+            painter.restore()
 
 
 # ---------------------------------------------------------------------------
