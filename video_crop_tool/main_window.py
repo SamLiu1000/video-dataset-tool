@@ -335,7 +335,7 @@ class MainWindow(QWidget):
         self.prev_frame_btn = self._btn("")
         self.prev_frame_btn.setIcon(style.step_icon("prev"))
         self.prev_frame_btn.setIconSize(QSize(16, 16))
-        self.prev_frame_btn.setToolTip(tr("上一帧 (←/A)"))
+        self.prev_frame_btn.setToolTip(tr("上一步 (←/A)"))
         # 步进秒数输入框：留空=1帧(最小步进)；填数字(可含小数)=按秒跳转
         self.step_input = QLineEdit()
         self.step_input.setFixedWidth(80)
@@ -344,7 +344,7 @@ class MainWindow(QWidget):
         self.next_frame_btn = self._btn("")
         self.next_frame_btn.setIcon(style.step_icon("next"))
         self.next_frame_btn.setIconSize(QSize(16, 16))
-        self.next_frame_btn.setToolTip(tr("下一帧 (→/D)"))
+        self.next_frame_btn.setToolTip(tr("下一步 (→/D)"))
         self.play_btn = self._btn(tr("▶ 播放"))
         self.play_btn.setCheckable(True)
         self.play_btn.setToolTip(tr("播放/暂停 (空格)"))
@@ -629,8 +629,8 @@ class MainWindow(QWidget):
         from PySide6.QtGui import QShortcut
         self._sc = [
             ("Space", lambda: self.toggle_play()),
-            ("Left", lambda: self._step_frame(-1)),
-            ("Right", lambda: self._step_frame(1)),
+            ("Left", lambda: self._shortcut_step(-1)),
+            ("Right", lambda: self._shortcut_step(1)),
             ("Ctrl+Left", lambda: self._step_frame(-10)),
             ("Ctrl+Right", lambda: self._step_frame(10)),
             ("I", lambda: self._set_in()),
@@ -1138,18 +1138,43 @@ class MainWindow(QWidget):
         self.timeline.set_range(self._current_in(), out_sec)
         self._on_range_changed(self._current_in(), out_sec)
 
+    def _shortcut_step(self, direction: int) -> None:
+        """快捷键(A/D/←→)步进：输入框填秒→按秒跳(轻量 VO seek)；留空→逐帧步进。
+
+        与按钮一致地"填秒跳转/留空帧步进"；秒模式单次跳，跳完 settle 定版。
+        """
+        if not self.reader:
+            return
+        if self._playing:
+            self.toggle_play()   # 暂停，与手动步进一致
+        secs = self._parse_step_seconds()
+        if secs is None:
+            self._step_frame(direction)
+            return
+        fps = self.reader.fps
+        n = self.reader.frame_count
+        target = max(0, min(n - 1, self._frame_idx + direction * round(secs * fps)))
+        self._frame_idx = target
+        self._update_frame_label()
+        if self.reader.duration > 0:
+            self.timeline.set_playhead(target / fps)
+        self._mpv_queue.put(("jogseek", target / fps))
+        self._request_settle()   # 定版：裁剪构图视图(CPU)跟上 VO 画面
+
     def _step_tick(self) -> None:
-        """长按 A/D 的连续步进定时器（等同慢速播放）"""
+        """长按 A/D 的连续步进定时器（仅帧步进模式；按秒模式不长按连跳）"""
         self._step_frame(self._step_dir)
 
     def _step_hold(self, delta: int) -> None:
-        """A/D 首次按下：暂停后步进一帧，并启动长按检测。
+        """A/D 首次按下：暂停后按设置步进一帧/秒，并启动长按检测。
 
-        长按超过 300ms 才开始连续步进（等同播放）；短按仅步进一帧，与点击按钮一致。
+        长按超过 300ms 才连续步进(等同播放)；仅「帧步进」支持长按连跳；
+        填了秒数则每次按下只跳一次(跳转幅度由输入框决定)。
         """
-        self._manual_step(delta)
+        self._shortcut_step(delta)
         self._step_dir = delta
-        self._step_hold_timer.start()
+        if self._parse_step_seconds() is None:
+            self._step_hold_timer.start()
 
     def _step_hold_expired(self) -> None:
         """长按检测到期：进入持续步进模式"""

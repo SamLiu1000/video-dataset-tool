@@ -709,6 +709,17 @@ class MpvWorker(QThread):
                                                precision=precision)
                     except Exception:
                         pass
+                elif kind == "jogseek":
+                    # 快捷键(A/D/←→)按秒跳转：轻量 seek，画面由 mpv VO 渲染。
+                    # 秒模式是单次跳(无长按连续)，故不需 _take_latest 合并。
+                    sec = item[1]
+                    if self._player is None:
+                        continue
+                    try:
+                        self._player._mpv.seek(sec, reference="absolute",
+                                               precision="exact")
+                    except Exception:
+                        pass
                 elif kind == "settle":
                     # 静止帧：seek 精确到目标后截图上送。render 模式画面由
                     # mpv 直接渲染到视频窗口，但裁剪构图视图需要 CPU 帧；
