@@ -175,7 +175,6 @@ _EN = {
         "Export audio gain: 100% = original volume, up to 600% boost",
     "视频保留音频": "Keep Video Audio",
     "导出视频片段时是否保留原音轨": "Keep the original audio track when exporting a video clip",
-    "秒,空=1帧": "sec, blank=1 frame",
     "步进秒数：留空=最小步进1帧；填数字(可含小数)=前进/后退按秒跳转":
         "Step seconds: blank = minimum 1 frame; enter a number (with decimals) to jump by that many seconds",
     "到入点": "In-Point",

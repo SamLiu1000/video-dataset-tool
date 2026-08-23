@@ -339,7 +339,6 @@ class MainWindow(QWidget):
         # 步进秒数输入框：留空=1帧(最小步进)；填数字(可含小数)=按秒跳转
         self.step_input = QLineEdit()
         self.step_input.setFixedWidth(80)
-        self.step_input.setPlaceholderText(tr("秒,空=1帧"))
         self.step_input.setValidator(QDoubleValidator(0.0, 99999.0, 5, self.step_input))
         self.step_input.setToolTip(tr("步进秒数：留空=最小步进1帧；填数字(可含小数)=前进/后退按秒跳转"))
         self.next_frame_btn = self._btn("")
