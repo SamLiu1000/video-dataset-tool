@@ -16,7 +16,7 @@ _FILE = ""
 
 def _settings_file() -> str:
     if getattr(sys, "frozen", False):
-        # 绿色版：exe 所在目录（dist\\VideoCropTool\\ 或用户解压后的目录）
+        # 绿色版：exe 所在目录（dist\video-dataset-tool\ 或用户解压后的目录）
         base = os.path.dirname(sys.executable)
     else:
         # 开发模式：项目根目录（video_crop_tool 包的上一级）

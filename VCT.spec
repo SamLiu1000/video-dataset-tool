@@ -2,8 +2,8 @@
 """video-dataset-tool 绿色便携版 PyInstaller spec。
 
 onedir 布局（PyInstaller 6.x）：
-  dist/VideoCropTool/VideoCropTool.exe
-  dist/VideoCropTool/_internal/          <- sys._MEIPASS
+  dist/video-dataset-tool/video-dataset-tool.exe
+  dist/video-dataset-tool/_internal/          <- sys._MEIPASS
     libmpv-2.dll                          （add-binary 到 _MEIPASS 根）
     bin/ffmpeg.exe, bin/ffprobe.exe       （add-binary 到 _MEIPASS/bin）
     video_crop_tool/assets/*.svg          （add-data 到 _MEIPASS/video_crop_tool/assets）
@@ -48,7 +48,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='VideoCropTool',
+    name='video-dataset-tool',
     icon=os.path.join(ROOT, 'video_crop_tool', 'assets', 'app.ico'),
     debug=False,
     bootloader_ignore_signals=False,
@@ -69,5 +69,5 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name='VideoCropTool',
+    name='video-dataset-tool',
 )

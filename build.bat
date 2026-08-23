@@ -3,8 +3,8 @@ rem =====================================================================
 rem  Video Crop Tool - one-click portable build (PyInstaller onedir)
 rem
 rem  Usage:
-rem    build.bat            rebuild into dist\VideoCropTool\
-rem    build.bat zip        rebuild, then also make dist\VideoCropTool.zip
+rem    build.bat            rebuild into dist\video-dataset-tool\
+rem    build.bat zip        rebuild, then also make dist\video-dataset-tool.zip
 rem
 rem  Requires an existing virtual env (.venv or .venv1); PyInstaller is
 rem  installed automatically if missing.
@@ -37,9 +37,9 @@ if errorlevel 1 (
 )
 
 rem ---- clean previous output so every build is fresh ----
-echo [INFO] Removing build\ and dist\VideoCropTool\ ...
+echo [INFO] Removing build\ and dist\video-dataset-tool\ ...
 if exist "build" rmdir /s /q "build" >nul 2>nul
-if exist "dist\VideoCropTool" rmdir /s /q "dist\VideoCropTool" >nul 2>nul
+if exist "dist\video-dataset-tool" rmdir /s /q "dist\video-dataset-tool" >nul 2>nul
 
 rem ---- run PyInstaller ----
 echo [INFO] Building (Qt + libmpv + ffmpeg, about 3-5 minutes)...
@@ -51,24 +51,24 @@ if errorlevel 1 (
 )
 
 rem ---- verify output ----
-if not exist "dist\VideoCropTool\VideoCropTool.exe" (
-    echo [ERROR] VideoCropTool.exe was not generated.
+if not exist "dist\video-dataset-tool\video-dataset-tool.exe" (
+    echo [ERROR] video-dataset-tool.exe was not generated.
     pause
     exit /b 1
 )
-echo [OK] Build complete: dist\VideoCropTool\VideoCropTool.exe
+echo [OK] Build complete: dist\video-dataset-tool\video-dataset-tool.exe
 
 rem ---- optional: create distributable zip ----
 if /i "%~1"=="zip" (
     echo [INFO] Creating distributable zip - large folder, may take a minute...
-    powershell -NoProfile -Command "Compress-Archive -Path 'dist\VideoCropTool' -DestinationPath 'dist\VideoCropTool.zip' -Force" >nul 2>nul
-    if exist "dist\VideoCropTool.zip" (
-        echo [OK] Archive: dist\VideoCropTool.zip
+    powershell -NoProfile -Command "Compress-Archive -Path 'dist\video-dataset-tool' -DestinationPath 'dist\video-dataset-tool.zip' -Force" >nul 2>nul
+    if exist "dist\video-dataset-tool.zip" (
+        echo [OK] Archive: dist\video-dataset-tool.zip
     ) else (
-        echo [WARN] Zip failed, but dist\VideoCropTool\ folder is ready.
+        echo [WARN] Zip failed, but dist\video-dataset-tool\ folder is ready.
     )
 )
 
 echo.
-echo Done! The portable build is under dist\VideoCropTool\ - run VideoCropTool.exe.
-echo To distribute, copy the dist\VideoCropTool folder (or the zip).
+echo Done! The portable build is under dist\video-dataset-tool\ - run video-dataset-tool.exe.
+echo To distribute, copy the dist\video-dataset-tool folder (or the zip).
