@@ -1620,6 +1620,11 @@ class MainWindow(QWidget):
         item.setIcon(QIcon(canvas))
 
     def eventFilter(self, obj, ev) -> bool:
+        # 点击步进输入框以外的任意位置 → 让它失焦/退出编辑，避免还要专门点预览框
+        si = getattr(self, "step_input", None)
+        if si is not None and ev.type() == QEvent.MouseButtonPress and si.hasFocus():
+            if obj is not si and not si.isAncestorOf(obj):
+                si.clearFocus()
         # 文件列表视口尺寸变化时按新宽度重算图标 item 宽度，保持整行铺满居中
         # （构造早期 file_list 尚未创建，需判空）
         fl = getattr(self, "file_list", None)
