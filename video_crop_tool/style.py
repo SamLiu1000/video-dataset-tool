@@ -38,6 +38,7 @@ CTRL_H = "20px"               # 按钮基准高度
 INPUT_H = "18px"              # 输入控件基准高度
 FONT_BASE = "11px"            # 全局控件字号
 FONT_SMALL = "10px"           # 紧凑区（参数设置栏）字号
+FONT_TOOL = "11px"            # 时间轴播放控制行字号（与顶部工具栏一致，全局 11px）
 PAD_BTN = "6px 12px"          # 按钮内边距
 PAD_INPUT = "3px 14px 3px 7px"  # 输入控件内边距（右侧留给步进/下拉箭头）
 
@@ -498,4 +499,14 @@ QStatusBar {{
     min-height: 22px;
 }}
 QStatusBar::item {{ border: none; }}
+
+/* ================= 时间轴播放控制行：字号放大 20%，按钮更紧凑 ================= */
+QWidget#toolRow QPushButton, QWidget#toolRow QLabel, QWidget#toolRow QLineEdit,
+QWidget#toolRow QToolButton, QWidget#toolRow QSpinBox, QWidget#toolRow QDoubleSpinBox {{
+    font-size: {FONT_TOOL};
+}}
+QWidget#toolRow QPushButton, QWidget#toolRow QToolButton {{
+    padding: 2px 6px;
+    min-height: 18px;
+}}
 """

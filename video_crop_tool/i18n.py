@@ -68,6 +68,8 @@ _EN = {
     "导出文件名模板（自动填充当前视频名）": "Export filename template (auto-filled with current video name)",
     "#=序号(1,2,3…)  $=日期(精确到分钟)  %=字母(a,b,…,z,aa…)":
         "#=number(1,2,3…)  $=date(to minute)  %=letter(a,b,…,z,aa…)",
+    "#=序号(1,2,3…)  $=日期(精确到分钟)  %=字母(a,b,…,z,aa…)；不含#/%时为 模板名_clip序号":
+        "#=number(1,2,3…)  $=date(to minute)  %=letter(a,b,…,z,aa…); without #/% it becomes template_clip#",
     "插入序号 #：同一视频第 1、2、3… 段": "Insert number #: 1st, 2nd, 3rd… segment of the same video",
     "插入日期 $：精确到分钟": "Insert date $: precise to the minute",
     "插入字母 %：a,b,…,z,aa,ab…（逻辑同 #）": "Insert letter %: a,b,…,z,aa,ab… (same logic as #)",
@@ -114,6 +116,9 @@ _EN = {
     "当前保存位置：{}": "Current save location: {}",
     "当前保存位置：未设置（将保存到源视频目录下的 crops）":
         "Current save location: not set (will save to a 'crops' folder beside the source)",
+    "打开目录": "Open Folder",
+    "在系统文件管理器中打开当前保存位置": "Open the current save location in the file manager",
+    "无法打开目录：{}": "Cannot open folder: {}",
     "选择保存位置": "Select output folder",
     "请先导入并打开一个视频": "Please import and open a video first",
     "请至少勾选一种导出内容（视频/图片/声音）":

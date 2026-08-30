@@ -14,8 +14,8 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime
 
-from PySide6.QtCore import QEvent, QRectF, QSize, QTime, Qt, QThread, QTimer, Signal
-from PySide6.QtGui import QBrush, QColor, QDoubleValidator, QDragEnterEvent, QDropEvent, QFont, QIcon, QKeySequence, QPainter, QPen, QPixmap, QShortcut
+from PySide6.QtCore import QEvent, QRectF, QSize, QTime, Qt, QThread, QTimer, Signal, QUrl
+from PySide6.QtGui import QBrush, QColor, QDoubleValidator, QDragEnterEvent, QDropEvent, QDesktopServices, QFont, QIcon, QKeySequence, QPainter, QPen, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -273,6 +273,20 @@ class MainWindow(QWidget):
         bar.addWidget(self.prev_btn)
         bar.addWidget(self.next_btn)
         bar.addStretch(1)
+        # 当前保存位置：并入顶部工具栏（导出按钮左侧），不再单独占一行
+        self.save_path_label = QLabel()
+        self.save_path_label.setObjectName("savePathLabel")
+        self.save_path_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.save_path_label.setToolTip("")
+        self.save_path_label.setMaximumWidth(360)
+        self.open_dir_btn = QPushButton(tr("打开目录"))
+        self.open_dir_btn.setObjectName("toolBtn")
+        self.open_dir_btn.setCursor(Qt.PointingHandCursor)
+        self.open_dir_btn.setToolTip(tr("在系统文件管理器中打开当前保存位置"))
+        self.open_dir_btn.setFixedHeight(30)
+        self.open_dir_btn.clicked.connect(self.open_output_dir)
+        bar.addWidget(self.save_path_label)
+        bar.addWidget(self.open_dir_btn)
         bar.addWidget(self.export_btn)
         # 中英切换按钮：点击保存语言并重启生效（文案显示目标语言）
         self.lang_btn = self._btn(self._lang_label())
@@ -282,20 +296,6 @@ class MainWindow(QWidget):
         self.lang_btn.clicked.connect(self._toggle_lang)
         bar.addWidget(self.lang_btn)
         root.addWidget(toolbar)
-
-        # 顶部：当前保存位置（持久化；可全部选中复制）
-        save_bar = QFrame()
-        save_bar.setObjectName("saveBar")
-        sb = QHBoxLayout(save_bar)
-        sb.setContentsMargins(8, 2, 8, 2)
-        sb.setSpacing(6)
-        self.save_path_label = QLabel()
-        self.save_path_label.setObjectName("savePathLabel")
-        self.save_path_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        self.save_path_label.setToolTip("")
-        sb.addWidget(self.save_path_label)
-        sb.addStretch(1)
-        root.addWidget(save_bar)
 
         # 中部：预览+时间轴 | 文件列表 | 参数设置（参数面板移到了最右）
         split = QSplitter(Qt.Horizontal)
@@ -399,7 +399,11 @@ class MainWindow(QWidget):
         trow.addWidget(self.volume_value)
         trow.addSpacing(16)   # 音量与速度之间留空隙，避免误认
         trow.addWidget(self.speed)   # 「速度」名字 + 滑块 + 数值
-        c_lay.addLayout(trow)
+        # 播放控制行包一层容器：QSS #toolRow 让该行所有控件字号缩小 50%
+        tool_row_host = QWidget()
+        tool_row_host.setObjectName("toolRow")
+        tool_row_host.setLayout(trow)
+        c_lay.addWidget(tool_row_host)
 
         self.timeline = TimelineWidget()
         c_lay.addWidget(self.timeline)
@@ -461,7 +465,7 @@ class MainWindow(QWidget):
         n_lbl.setObjectName("fieldLbl")
         self.name_tpl = QLineEdit()
         self.name_tpl.setPlaceholderText(tr("导出文件名模板（自动填充当前视频名）"))
-        self.name_tpl.setToolTip(tr("#=序号(1,2,3…)  $=日期(精确到分钟)  %=字母(a,b,…,z,aa…)"))
+        self.name_tpl.setToolTip(tr("#=序号(1,2,3…)  $=日期(精确到分钟)  %=字母(a,b,…,z,aa…)；不含#/%时为 模板名_clip序号"))
         self.hash_btn = self._btn("#")
         self.hash_btn.setToolTip(tr("插入序号 #：同一视频第 1、2、3… 段"))
         self.hash_btn.setFixedWidth(34)
@@ -545,9 +549,9 @@ class MainWindow(QWidget):
         split.setSizes([940, 232, 248])
         root.addWidget(split, 1)
 
-        # 底部：状态/进度合并为一行；空闲时整行隐藏，彻底去掉底部空白
+        # 底部：状态/进度合并为一行；常驻显示（不自动隐藏），避免界面布局跳动
         self.bottom_row = QWidget()
-        self.bottom_row.setVisible(False)
+        self.bottom_row.setVisible(True)
         prog_row = QHBoxLayout(self.bottom_row)
         prog_row.setContentsMargins(2, 0, 2, 0)
         prog_row.setSpacing(8)
@@ -658,11 +662,10 @@ class MainWindow(QWidget):
         self._msg_timer.start(msec)
 
     def _hide_bottom_if_idle(self) -> None:
-        """导出结束且无状态文字时收起底部行，消除底部空白"""
+        """空闲时收起进度条、清空状态文字；底部行保持常驻（不隐藏）。"""
         if not (self.worker and self.worker.isRunning()):
             self.progress_label.setText("")
             self.progress.setVisible(False)
-            self.bottom_row.setVisible(False)
 
     # ------------------------------------------------------------------
     # 预设尺寸（持久化到 JSON，重启保留）
@@ -1015,15 +1018,13 @@ class MainWindow(QWidget):
     def _clear_loading(self) -> None:
         """收起打开视频时的忙态加载指示（还原进度条为 0..1000 数值模式）。
 
-        加载成功/失败都要整行收起，不能只隐藏进度条 —— 否则底部会残留
-        "正在加载预览 X.Xs"直到下一次状态提示。
+        加载成功/失败都要收起进度条并清空文字；底部行常驻，不隐藏。
         """
         self._loading_timer.stop()
         self.progress.setRange(0, 1000)
         self.progress.setValue(0)
         self.progress.setVisible(False)
         self.progress_label.setText("")
-        self.bottom_row.setVisible(False)
 
     def _save_current_job(self) -> None:
         if not self.reader or not self.current_path:
@@ -1458,25 +1459,18 @@ class MainWindow(QWidget):
             self.preview.set_crop_size(self.panel.cw.value(), self.panel.ch.value())
 
     def _swap_wh(self) -> None:
-        """交换宽高：当前框 W↔H 字面对换（1440×810 → 810×1440）。
+        """交换宽高：尺寸面板 W↔H 字面对换（1440×1080 ↔ 1080×1440）。
 
-        面板=交换后的逻辑尺寸(810×1440)；框若超出画面，则等比例缩小适应视频
-        (810×1440 → 608×1080)，不拉伸不变形。先同步导出尺寸再设框，
-        避免 _fit_aspect 用旧比例把框拉回错误方向。
+        尺寸(面板/导出)=字面对换值，保持不变形不缩；画面上框按新尺寸比例
+        等比缩小适应放进画面（不超出）；导出把框截到的内容填充到尺寸。
         """
         if not self.reader:
             return
-        src_w, src_h = self.reader.width, self.reader.height
-        r = self.preview.crop_rect()
-        if r.isNull() or r.width() <= 1 or r.height() <= 1:
-            return
-        w, h = int(r.width()), int(r.height())        # 当前框（源像素）
-        scale = min(1.0, src_w / max(1, h), src_h / max(1, w))   # 交换后放不下则缩小
-        fw, fh = ensure_even(int(round(h * scale))), ensure_even(int(round(w * scale)))  # 框=缩小适应
-        self.panel.cw.setRange(2, 99999)   # 允许超源的纵向/横向逻辑分辨率
+        w, h = self.panel.cw.value(), self.panel.ch.value()   # 当前尺寸
+        self.panel.cw.setRange(2, 99999)   # 允许超源的纵向/横向分辨率
         self.panel.ch.setRange(2, 99999)
-        self.panel.set_sizes(h, w)         # 面板 = 交换后的逻辑尺寸（810×1440）
-        self.preview.set_crop_size(fw, fh)   # 框 = 等比缩小适应（608×1080）
+        self.panel.set_sizes(h, w)          # 尺寸 W↔H（导出尺寸同步更新）
+        self.preview.set_crop_size(h, w)    # 框按新尺寸比例适应放进画面
 
     def _on_duration_input(self) -> None:
         if not self.reader:
@@ -1561,6 +1555,17 @@ class MainWindow(QWidget):
         tpl = tpl.replace("$", datetime.now().strftime("%Y%m%d-%H%M"))
         tpl = re.sub(r"%+", lambda _m: self._num_to_letters(seg_no), tpl)
         return sanitize_name(tpl)
+
+    def _export_name(self, tpl: str, source: str, seg_no: int) -> str:
+        """导出文件名主干（不含扩展名，也不附加帧范围后缀）。
+
+        模板含计数插入符（# 序号 / % 字母）时按模板展开，如「视频名#」→「视频名1」；
+        否则为「模板名_clip序号」，如「视频名_clip1」「视频名_clip2」。
+        """
+        if "#" in tpl or "%" in tpl:
+            return self._expand_filename(tpl, source, seg_no)
+        base = self._expand_filename(tpl, source, seg_no)
+        return f"{base}_clip{seg_no}"
 
     # -- 文件列表视图模式 ----------------------------------------------------
     def _cycle_view_mode(self) -> None:
@@ -1661,11 +1666,16 @@ class MainWindow(QWidget):
         item.setIcon(QIcon(canvas))
 
     def eventFilter(self, obj, ev) -> bool:
-        # 点击步进输入框以外的任意位置 → 让它失焦/退出编辑，避免还要专门点预览框
-        si = getattr(self, "step_input", None)
-        if si is not None and ev.type() == QEvent.MouseButtonPress and si.hasFocus():
-            if obj is not si and not si.isAncestorOf(obj):
-                si.clearFocus()
+        # 点击任意文本输入控件（文件名/宽高/帧率/时长/入出点/下拉框等）以外的位置
+        # → 让当前聚焦的输入控件失焦/退出编辑，避免还要专门点预览框。步进框同样适用。
+        if ev.type() == QEvent.MouseButtonPress:
+            fw = QApplication.focusWidget()
+            if fw is not None and isinstance(fw, (QLineEdit, QSpinBox, QDoubleSpinBox,
+                                                  QTimeEdit, QComboBox)):
+                if obj is not fw and not fw.isAncestorOf(obj):
+                    # 忽略输入控件自身的弹层（下拉框/日历等独立子窗口）的点击，避免误失焦
+                    if not (isinstance(obj, QWidget) and obj.isWindow()):
+                        fw.clearFocus()
         # 文件列表视口尺寸变化时按新宽度重算图标 item 宽度，保持整行铺满居中
         # （构造早期 file_list 尚未创建，需判空）
         fl = getattr(self, "file_list", None)
@@ -1793,6 +1803,17 @@ class MainWindow(QWidget):
         p = self._effective_output_dir()
         self.save_path_label.setText(tr("当前保存位置：{}").format(p))
         self.save_path_label.setToolTip(p)
+
+    def open_output_dir(self) -> None:
+        """在系统文件管理器中打开当前保存位置（目录不存在则先创建）。"""
+        p = self._effective_output_dir()
+        try:
+            os.makedirs(p, exist_ok=True)
+        except OSError as e:
+            self._msg(tr("无法打开目录：{}").format(e), 6000)
+            return
+        if not QDesktopServices.openUrl(QUrl.fromLocalFile(p)):
+            self._msg(tr("无法打开目录：{}").format(p), 6000)
 
     # -- 面板参数持久化:帧率/导出时长/导出选项(存到 JSON) -------------------
     # hw_chk 由硬件检测(NVENC)驱动,不在此持久化;cw/ch 与裁切框联动,也不在此存。
@@ -1941,7 +1962,7 @@ class MainWindow(QWidget):
         # 同一视频每剪切一次序号 +1：#=1,2,3…  %=a,b,c…
         self._seg_counters[path] = self._seg_counters.get(path, 0) + 1
         seg_no = self._seg_counters[path]
-        fname = self._expand_filename(self._template(), path, seg_no)
+        fname = self._export_name(self._template(), path, seg_no)
         jobs: list[CropJob] = []
         seg_job = None
         if want_video:
@@ -2029,7 +2050,7 @@ class MainWindow(QWidget):
         self._seg_counters[self.current_path] = self._seg_counters.get(self.current_path, 0) + 1
         seg_no = self._seg_counters[self.current_path]
         j = self._frame_job(self.current_path, self._frame_idx / self.reader.fps)
-        j.filename = self._expand_filename(self._template(), self.current_path, seg_no)
+        j.filename = self._export_name(self._template(), self.current_path, seg_no)
         self._start_queue([j])
 
     def export_all(self) -> None:

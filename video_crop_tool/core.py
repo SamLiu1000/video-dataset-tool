@@ -167,8 +167,8 @@ class CropJob:
         self.crop_h = ensure_even(max(2, self.crop_h))
         self.crop_x = ensure_even(max(0, self.crop_x))
         self.crop_y = ensure_even(max(0, self.crop_y))
-        self.out_w = max(2, self.out_w)
-        self.out_h = max(2, self.out_h)
+        self.out_w = ensure_even(max(2, self.out_w))
+        self.out_h = ensure_even(max(2, self.out_h))
 
     def duration(self) -> float:
         return max(0.001, self.out_point - self.in_point)
@@ -347,18 +347,13 @@ class FFmpegWorker(QThread):
         if not ffmpeg_available():
             raise RuntimeError(tr("未找到 ffmpeg，请先安装并加入 PATH"))
         stem = job.filename or sanitize_name(os.path.splitext(os.path.basename(job.source))[0])
+        # 不再追加帧范围后缀：文件名主干由 main_window._export_name 决定
+        # （模板含 #/% 计数符按模板，否则 clip{序号}）
         if job.kind == "segment":
-            stem = f"{stem}_{int(round(job.in_point * 1000))}-{int(round(job.out_point * 1000))}"
             ext = ".mp4"
         elif job.kind == "audio":
-            stem = f"{stem}_{int(round(job.in_point * 1000))}-{int(round(job.out_point * 1000))}"
             ext = ".mp3"
         else:
-            if job.out_point > 0:
-                # 图片+视频同导出：与视频段同名的图片（仅扩展名不同）
-                stem = f"{stem}_{int(round(job.in_point * 1000))}-{int(round(job.out_point * 1000))}"
-            else:
-                stem = f"{stem}_frame_{int(round(job.in_point * 1000))}"
             ext = ".jpg" if job.img_format == "jpg" else ".png"
         out_path = unique_output_path(job.out_dir, stem, ext)
         # 视频片段：读源码率用于导出封顶（防体积暴涨；同一源批量导出只读一次）
