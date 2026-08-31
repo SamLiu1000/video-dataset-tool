@@ -1,3 +1,5 @@
+[English](README.md) | [中文](README_CHS.md)
+
 A video editing tool specifically built and optimized for creating AI training datasets, designed to solve some of the biggest pain points when working with large video files.
 
 ### Key Features
